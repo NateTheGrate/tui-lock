@@ -44,19 +44,19 @@ Build:
 make
 ```
  
-The output is `build/libtui-module.so`.
+The output is `build/tui-module.so`.
  
 ## Usage
  
 Run gtklock with the module:
  
 ```bash
-gtklock -m /path/to/build/libtui-module.so
+gtklock -m /path/to/build/tui-module.so
 ```
  
 Or add it to your gtklock config (`~/.config/gtklock/config.ini`):
  
 ```ini
 [main]
-modules=/path/to/build/libtui-module.so
+modules=/path/to/build/tui-module.so
 ```
