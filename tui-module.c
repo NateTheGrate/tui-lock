@@ -3,6 +3,8 @@
 #include "gtklock.h"
 #include "window.h"
 
+#include "prompt.h"
+
 const char module_name[] = "tui-module";
 const guint module_major_version = 4;
 const guint module_minor_version = 0;
@@ -25,23 +27,8 @@ void on_activation(struct GtkLock *lock, int id) {
   write_line_to_log("Module loaded successfully");
 }
 
-static void draw_prompt(void) {
-    const char *seq =
-        "\033[H"            // cursor home
-        "\033[2J"           // clear screen
-        "\033[5;10H"        // move to row 5, col 10
-        "\033[1;32m"        // bold green
-        "Password: "
-        "\033[0m";          // reset color
-
-    if(term) {
-      vte_terminal_feed(term, seq, -1);
-      vte_terminal_feed(term, "\033[3J", -1); // clear scrollback to prevent a redraw that moves the text
-
-      for( int i = 0; i < pw_len; i++) {
-        vte_terminal_feed(term, "*", 1);
-      }
-    }
+static void on_resize(GtkWidget *widget, GdkRectangle *alloc, gpointer data) {
+    draw_prompt(term, pw_len);
 }
 
 static GtkWidget *input_field = NULL;
@@ -52,7 +39,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (pw_len > 0) {
             pw_len--;
             password[pw_len] = '\0';
-            draw_prompt();
+            draw_prompt(term, pw_len);
         }
     } else if (key == GDK_KEY_Return) {
         write_line_to_log("Enter pressed");
@@ -62,7 +49,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (ch && g_unichar_isprint(ch) && pw_len < (int)(sizeof(password) - 1)) {
             password[pw_len++] = (char)ch;
             password[pw_len] = '\0';
-            draw_prompt();
+            draw_prompt(term, pw_len);
         }
     }
     
@@ -104,6 +91,7 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
     
     g_signal_connect(terminal, "key-press-event", G_CALLBACK(on_key_press), NULL);
     g_signal_connect(terminal, "map", G_CALLBACK(on_map), NULL);
+    g_signal_connect(terminal, "size-allocate", G_CALLBACK(on_resize), NULL);
     gtk_widget_set_can_focus(terminal, TRUE);
 
     // fill entire screen with VTE
@@ -112,7 +100,7 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
     gtk_overlay_add_overlay(GTK_OVERLAY(win->overlay), terminal);
     gtk_widget_show(terminal);
     
-    draw_prompt();
+    draw_prompt(term, pw_len);
 
     write_line_to_log("VTE with prompt added to lock screen");
   } else {
@@ -129,5 +117,4 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
 
     write_line_to_log("Created blank VTE on secondary monitors");
   }
-   
 }
