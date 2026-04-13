@@ -13,8 +13,16 @@ static const BoxChars ROUND  = { "╭", "╮", "╰", "╯", "─", "│", "├"
 
 static const BoxChars *box = &SINGLE;
 
-static const char* ANSI_WHITE = "\033[1;37m";
-static const char* ANSI_GREEN = "\033[1;32m";
+// gruvbox colors
+#define ANSI_WHITE "\033[38;2;235;219;178m";
+#define ANSI_GREEN "\033[38;2;184;187;38m";
+#define ANSI_BLUE "\033[38;2;142;192;124m";
+#define ANSI_RED "\033[38;2;251;73;52m";
+
+static const char* color_border = ANSI_WHITE;
+static const char* color_login = ANSI_BLUE;
+static const char* color_username = ANSI_GREEN;
+static const char* color_password = ANSI_GREEN;
 
 static void draw_prompt(VteTerminal* term, int pw_len) {
     if (!term) return;
@@ -41,7 +49,7 @@ static void draw_prompt(VteTerminal* term, int pw_len) {
 
     // --- Top border ---
     off += snprintf(buf + off, sizeof(buf) - off,
-                    "\033[%d;%dH%s%s", box_y, box_x, ANSI_GREEN, box->tl);
+                    "\033[%d;%dH%s%s", box_y, box_x, color_border, box->tl);
     for (int i = 0; i < box_w - 2; i++)
         off += snprintf(buf + off, sizeof(buf) - off, "%s", box->h);
     off += snprintf(buf + off, sizeof(buf) - off, "%s", box->tr);
@@ -67,19 +75,19 @@ static void draw_prompt(VteTerminal* term, int pw_len) {
     int title_len = strlen(title);
     int title_x = box_x + (box_w - title_len) / 2;
     off += snprintf(buf + off, sizeof(buf) - off,
-                    "\033[%d;%dH%s%s", box_y, title_x, ANSI_WHITE, title);
+                    "\033[%d;%dH%s%s", box_y, title_x, color_login, title);
 
     // --- Username (static, not editable) ---
     int user_row = box_y + 2;
     int label_x  = box_x + 2;
     off += snprintf(buf + off, sizeof(buf) - off,
                     "\033[%d;%dH%sUser:     \033[0m%s",
-                    user_row, label_x, ANSI_GREEN, username);
+                    user_row, label_x, color_username, username);
 
     // --- Separator line inside the box ---
     int sep_row = box_y + 4;
     off += snprintf(buf + off, sizeof(buf) - off,
-                   "\033[%d;%dH%s", sep_row, box_x, ANSI_GREEN);
+                   "\033[%d;%dH%s", sep_row, box_x, color_border);
     // Left junction
     off += snprintf(buf + off, sizeof(buf) - off, "%s", box->lj);
     for (int i = 0; i < box_w - 2; i++)
@@ -91,7 +99,7 @@ static void draw_prompt(VteTerminal* term, int pw_len) {
     int prompt_row = box_y + 6;
     off += snprintf(buf + off, sizeof(buf) - off,
                     "\033[%d;%dH%sPassword: \033[0m",
-                    prompt_row, label_x, ANSI_GREEN);
+                    prompt_row, label_x, color_password);
     for (int i = 0; i < pw_len; i++)
         off += snprintf(buf + off, sizeof(buf) - off, "*");
 

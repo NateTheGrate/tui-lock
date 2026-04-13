@@ -5,6 +5,9 @@
 
 #include "prompt.h"
 
+GdkRGBA color_bg = { 0.157, 0.157, 0.157, 1.0 };  // #282828 (gruvbox dark background)
+GdkRGBA color_fg = { 0.922, 0.859, 0.698, 1.0 };  // #ebdd2 (gruvbox dark foreground)
+
 const char module_name[] = "tui-module";
 const guint module_major_version = 4;
 const guint module_minor_version = 0;
@@ -88,7 +91,9 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
     {
       write_line_to_log("Failed to create VTE");
     }
-    
+    vte_terminal_set_color_background(term, &color_bg);
+    vte_terminal_set_color_foreground(term, &color_fg);
+
     g_signal_connect(terminal, "key-press-event", G_CALLBACK(on_key_press), NULL);
     g_signal_connect(terminal, "map", G_CALLBACK(on_map), NULL);
     g_signal_connect(terminal, "size-allocate", G_CALLBACK(on_resize), NULL);
@@ -106,9 +111,15 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
   } else {
     // other monitors: blank VTE, no input
     GtkWidget *blank = vte_terminal_new();
-    vte_terminal_feed(VTE_TERMINAL(blank), "\033[?25l", -1); // hide cursor
+    VteTerminal* blank_term = VTE_TERMINAL(blank);
+    if(!blank || !blank_term)
+    {
+      write_line_to_log("Failed to create secondary VTE");
+    }
+    vte_terminal_set_color_background(blank_term, &color_bg);
+    vte_terminal_feed(blank_term, "\033[?25l", -1); // hide cursor
 
-    gtk_widget_set_can_focus(GTK_WIDGET(blank), FALSE);
+    gtk_widget_set_can_focus(blank, FALSE);
     gtk_widget_set_hexpand(blank, TRUE);
     gtk_widget_set_vexpand(blank, TRUE);
 
