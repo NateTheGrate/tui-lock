@@ -25,4 +25,5 @@
 -I/usr/include/sysprof-6
 -I/usr/include/gtk-session-lock
 -I./gtklock/include
+-I./include
 -pthread
