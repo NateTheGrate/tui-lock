@@ -6,7 +6,7 @@ DEBUG_CFLAGS = -g -O0 -DDEBUG
 
 BUILD_DIR = build
 
-$(BUILD_DIR)/libtui-module.so: ./src/tui-module.c | $(BUILD_DIR)
+$(BUILD_DIR)/tui-lock.so: ./src/tui-lock.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(DEBUG_CFLAGS) -o $@ $< $(LDFLAGS)
 
 $(BUILD_DIR):
