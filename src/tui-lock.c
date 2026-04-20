@@ -20,10 +20,10 @@ static const char *log_file = "/tmp/tui-lock.log";
 
 // config variable defaults
 static gboolean debug_mode = FALSE;
-static gint font_size = 8;
+static gint font_size = 12;   // points
 static char* font_family = "";
-static gint border_x = 320;
-static gint border_y = 180; 
+static gint border_x = 320;   // pixels
+static gint border_y = 180;   // pixels
 static gint border_style = 0; // 0 = single line, 1 = double line, 2 = curved single line
 
 GOptionEntry module_entries[] = {
@@ -51,7 +51,7 @@ void on_activation(struct GtkLock *lock, int id) {
 }
 
 static void on_resize(GtkWidget *widget, GdkRectangle *alloc, gpointer data) {
-    draw_prompt(term, pw_len, border_x, border_y);
+    draw_prompt(term, pw_len, border_x, border_y, font_size);
 }
 
 static GtkWidget *input_field = NULL;
@@ -62,7 +62,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (pw_len > 0) {
             pw_len--;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len, border_x, border_y);
+            draw_prompt(term, pw_len, border_x, border_y, font_size);
         }
     } else if (key == GDK_KEY_Return) {
         write_line_to_log("Enter pressed: gtklock should handle password now");
@@ -72,7 +72,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (ch && g_unichar_isprint(ch) && pw_len < (int)(sizeof(password) - 1)) {
             password[pw_len++] = (char)ch;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len, border_x, border_y);
+            draw_prompt(term, pw_len, border_x, border_y, font_size);
         }
     }
     
@@ -129,7 +129,7 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
     gtk_overlay_add_overlay(GTK_OVERLAY(win->overlay), terminal);
     gtk_widget_show(terminal);
     
-    draw_prompt(term, pw_len, border_x, border_y);
+    draw_prompt(term, pw_len, border_x, border_y, font_size);
 
     write_line_to_log("primarty VTE with prompt added to lock screen");
   } else {
