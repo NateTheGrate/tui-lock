@@ -16,13 +16,23 @@ const guint module_minor_version = 0;
 static VteTerminal *term = NULL;
 static char password[256] = {0};
 static int pw_len = 0;
+static const char *log_file = "/tmp/tui-lock.log";
 
 // config variable defaults
-static const char *log_file = "/tmp/tui-lock.log";
 static gboolean debug_mode = FALSE;
+static gint font_size = 8;
+static char* font_family = "";
+static gint border_x = 320;
+static gint border_y = 180; 
+static gint border_style = 0; // 0 = single line, 1 = double line, 2 = curved single line
 
 GOptionEntry module_entries[] = {
     { "debug", 0, 0, G_OPTION_ARG_NONE, &debug_mode, NULL, NULL },
+    { "font-size", 0, 0, G_OPTION_ARG_INT, &font_size, NULL, NULL },
+    { "font-family", 0, 0, G_OPTION_ARG_STRING, &font_family, NULL, NULL},
+    { "border-x", 0, 0, G_OPTION_ARG_INT, &border_x, NULL, NULL },
+    { "border-y", 0, 0, G_OPTION_ARG_INT, &border_y, NULL, NULL },
+    { "border-style", 0, 0, G_OPTION_ARG_INT, &border_style, NULL, NULL },
     { NULL },
 };
 
@@ -41,7 +51,7 @@ void on_activation(struct GtkLock *lock, int id) {
 }
 
 static void on_resize(GtkWidget *widget, GdkRectangle *alloc, gpointer data) {
-    draw_prompt(term, pw_len);
+    draw_prompt(term, pw_len, border_x, border_y);
 }
 
 static GtkWidget *input_field = NULL;
@@ -52,7 +62,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (pw_len > 0) {
             pw_len--;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len);
+            draw_prompt(term, pw_len, border_x, border_y);
         }
     } else if (key == GDK_KEY_Return) {
         write_line_to_log("Enter pressed: gtklock should handle password now");
@@ -62,7 +72,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (ch && g_unichar_isprint(ch) && pw_len < (int)(sizeof(password) - 1)) {
             password[pw_len++] = (char)ch;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len);
+            draw_prompt(term, pw_len, border_x, border_y);
         }
     }
     
@@ -119,7 +129,7 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
     gtk_overlay_add_overlay(GTK_OVERLAY(win->overlay), terminal);
     gtk_widget_show(terminal);
     
-    draw_prompt(term, pw_len);
+    draw_prompt(term, pw_len, border_x, border_y);
 
     write_line_to_log("primarty VTE with prompt added to lock screen");
   } else {

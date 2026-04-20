@@ -20,16 +20,32 @@ static const char* color_login = COLOR_LOGIN_TEXT;
 static const char* color_username = COLOR_PROMPT_TEXT;
 static const char* color_password = COLOR_PROMPT_TEXT;
 
-static void draw_prompt(VteTerminal* term, int pw_len) {
+static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int target_px_h) {
     if (!term) return;
+
+    long cell_w = vte_terminal_get_char_width(term);
+    long cell_h = vte_terminal_get_char_height(term);
+    if (cell_w <= 0 || cell_h <= 0) {
+        // Fallback to sane defaults
+        cell_w = 8;
+        cell_h = 16;
+    }
+
+    // target dimensions in pixels
+    if( target_px_w <= 0 || target_px_h <= 0)
+    {
+      target_px_w = 320;
+      target_px_h = 180;
+    }
+    // calculate dimensions in cells (normalized for font size)
+    int box_w = MAX(40, (int)(target_px_w / cell_w));
+    int box_h = MAX(9,  (int)(target_px_h / cell_h));
+
+    const char *username = g_get_user_name();
 
     long cols = vte_terminal_get_column_count(term);
     long rows = vte_terminal_get_row_count(term);
 
-    const char *username = g_get_user_name();
-
-    int box_w = 40;
-    int box_h = 9;  // taller to fit both fields
     int box_x = (cols - box_w) / 2;
     int box_y = (rows - box_h) / 2;
 
@@ -73,15 +89,20 @@ static void draw_prompt(VteTerminal* term, int pw_len) {
     off += snprintf(buf + off, sizeof(buf) - off,
                     "\033[%d;%dH%s%s", box_y, title_x, color_login, title);
 
+    // The content block spans 5 rows: user, blank, separator, blank, password
+    int content_h = 5;
+    int content_start = box_y + (box_h - content_h) / 2;
+    int user_row = content_start;
+    int sep_row = content_start + 2;
+    int prompt_row = content_start + 4;
+
     // --- Username (static, not editable) ---
-    int user_row = box_y + 2;
     int label_x  = box_x + 2;
     off += snprintf(buf + off, sizeof(buf) - off,
                     "\033[%d;%dH%sUser:     \033[0m%s",
                     user_row, label_x, color_username, username);
 
     // --- Separator line inside the box ---
-    int sep_row = box_y + 4;
     off += snprintf(buf + off, sizeof(buf) - off,
                    "\033[%d;%dH%s", sep_row, box_x, color_border);
     // Left junction
@@ -92,7 +113,6 @@ static void draw_prompt(VteTerminal* term, int pw_len) {
     off += snprintf(buf + off, sizeof(buf) - off, "%s", box->rj);
 
     // --- Password label + asterisks ---
-    int prompt_row = box_y + 6;
     off += snprintf(buf + off, sizeof(buf) - off,
                     "\033[%d;%dH%sPassword: \033[0m",
                     prompt_row, label_x, color_password);
