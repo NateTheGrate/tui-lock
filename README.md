@@ -16,11 +16,12 @@ A [gtklock](https://github.com/jovanlanik/gtklock) module that replaces the defa
 - pkgconf
 - make
 - clang
+- pango
  
 ### Arch Linux
  
 ```bash
-pacman -S gtk3 vte3 gtk-session-lock gtklock pkgconf clang 
+pacman -S gtk3 vte3 gtk-session-lock gtklock pkgconf clang pango
 ```
  
 ## Building
