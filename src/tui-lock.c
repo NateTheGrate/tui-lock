@@ -1,5 +1,7 @@
 #include <gtk/gtk.h>
 #include <vte/vte.h>
+#include <pango/pango.h>
+#include <fontconfig/fontconfig.h>
 #include "glib.h"
 #include "gtklock.h"
 #include "window.h"
@@ -17,11 +19,12 @@ static VteTerminal *term = NULL;
 static char password[256] = {0};
 static int pw_len = 0;
 static const char *log_file = "/tmp/tui-lock.log";
+static const char *fallback_font_family = "Monospace";
 
 // config variable defaults
 static gboolean debug_mode = FALSE;
 static gint font_size = 12;   // points
-static char* font_family = "";
+static char *font_family = "Monospace";
 static gint border_x = 320;   // pixels
 static gint border_y = 180;   // pixels
 static gint border_style = 0; // 0 = single line, 1 = double line, 2 = curved single line
@@ -51,7 +54,7 @@ void on_activation(struct GtkLock *lock, int id) {
 }
 
 static void on_resize(GtkWidget *widget, GdkRectangle *alloc, gpointer data) {
-    draw_prompt(term, pw_len, border_x, border_y, font_size);
+    draw_prompt(term, pw_len, border_x, border_y);
 }
 
 static GtkWidget *input_field = NULL;
@@ -62,7 +65,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (pw_len > 0) {
             pw_len--;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len, border_x, border_y, font_size);
+            draw_prompt(term, pw_len, border_x, border_y);
         }
     } else if (key == GDK_KEY_Return) {
         write_line_to_log("Enter pressed: gtklock should handle password now");
@@ -72,7 +75,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (ch && g_unichar_isprint(ch) && pw_len < (int)(sizeof(password) - 1)) {
             password[pw_len++] = (char)ch;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len, border_x, border_y, font_size);
+            draw_prompt(term, pw_len, border_x, border_y);
         }
     }
     
@@ -98,6 +101,63 @@ static gboolean on_map(GtkWidget *widget, gpointer data) {
   // so gtklock's focus logic doesn't override ours
   g_idle_add(grab_focus_idle, widget);
   return FALSE;
+}
+
+
+static void set_vte_font_size(VteTerminal *term, int font_size) {
+    // Get the current font
+    const PangoFontDescription *current = vte_terminal_get_font(VTE_TERMINAL(term));
+
+    // Copy it so we can modify it
+    PangoFontDescription *fd = pango_font_description_copy(current);
+    pango_font_description_set_size(fd, font_size * PANGO_SCALE);  // size is in Pango units
+    vte_terminal_set_font(VTE_TERMINAL(term), fd);
+    pango_font_description_free(fd);
+}
+
+char *resolve_font_family(const char *family) {
+    FcPattern *pat = FcNameParse((const FcChar8 *)family);
+    FcConfigSubstitute(NULL, pat, FcMatchPattern);
+    FcDefaultSubstitute(pat);
+
+    FcResult result;
+    FcPattern *match = FcFontMatch(NULL, pat, &result);
+
+    FcChar8 *resolved = NULL;
+    FcPatternGetString(match, FC_FAMILY, 0, &resolved);
+
+    // Duplicate before freeing the pattern
+    char *out = g_strdup((char *)resolved);
+
+    FcPatternDestroy(pat);
+    FcPatternDestroy(match);
+    return out;  // caller must g_free()
+}
+
+static gboolean set_vte_font_family( VteTerminal *term, const char *font_str) {
+    const PangoFontDescription *current = vte_terminal_get_font(term);
+    char *resolved = resolve_font_family(font_str);
+    PangoFontDescription *fd = pango_font_description_copy(current);
+    pango_font_description_set_family(fd, resolved);
+    g_free(resolved);
+
+    PangoFontMap *map = pango_cairo_font_map_get_default();
+    PangoContext *ctx = pango_font_map_create_context(map);
+    PangoFont *loaded = pango_context_load_font(ctx, fd);
+
+    if (!loaded) {
+        g_object_unref(ctx);
+        pango_font_description_free(fd);
+        write_line_to_log("Font failed to load");
+        return FALSE;
+    }
+
+    write_line_to_log("Font was loaded successfully");
+    vte_terminal_set_font(term, fd);
+
+    g_object_unref(ctx);
+    pango_font_description_free(fd);
+    return TRUE;
 }
 
 static gboolean term_created = FALSE;
@@ -128,8 +188,15 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
     gtk_widget_set_vexpand(terminal, TRUE);
     gtk_overlay_add_overlay(GTK_OVERLAY(win->overlay), terminal);
     gtk_widget_show(terminal);
+
+    set_vte_font_size(term, font_size);
+    if(!set_vte_font_family(term, font_family))
+    {
+      write_line_to_log("Font failed to load, trying fallback font");
+      set_vte_font_family(term, fallback_font_family);
+    }
     
-    draw_prompt(term, pw_len, border_x, border_y, font_size);
+    draw_prompt(term, pw_len, border_x, border_y);
 
     write_line_to_log("primarty VTE with prompt added to lock screen");
   } else {
@@ -149,6 +216,13 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
 
     gtk_overlay_add_overlay(GTK_OVERLAY(win->overlay), blank);
     gtk_widget_show(blank);
+
+    set_vte_font_size(term, font_size);
+    if(!set_vte_font_family(term, font_family))
+    {
+      write_line_to_log("Font failed to load, trying fallback font");
+      set_vte_font_family(term, fallback_font_family);
+    }
 
     write_line_to_log("Created blank VTE on secondary monitors");
   }

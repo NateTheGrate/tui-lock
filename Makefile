@@ -1,7 +1,7 @@
 CC = clang
 PKG_CONFIG = pkg-config
-CFLAGS  += -fPIC -Wall -Wextra -I./gtklock/include -I./include $(shell $(PKG_CONFIG) --cflags gtk+-3.0 vte-2.91, gtk-session-lock-0)
-LDFLAGS += -shared $(shell $(PKG_CONFIG) --libs gtk+-3.0 vte-2.91, gtk-session-lock-0)
+CFLAGS  += -fPIC -Wall -Wextra -I./gtklock/include -I./include $(shell $(PKG_CONFIG) --cflags gtk+-3.0 vte-2.91, gtk-session-lock-0, pango, pangocairo)
+LDFLAGS += -shared $(shell $(PKG_CONFIG) --libs gtk+-3.0 vte-2.91, gtk-session-lock-0, pango, pangocairo)
 DEBUG_CFLAGS = -g -O0 -DDEBUG
 
 BUILD_DIR = build

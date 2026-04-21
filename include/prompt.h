@@ -20,17 +20,8 @@ static const char* color_login = COLOR_LOGIN_TEXT;
 static const char* color_username = COLOR_PROMPT_TEXT;
 static const char* color_password = COLOR_PROMPT_TEXT;
 
-static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int target_px_h, int font_size) {
+static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int target_px_h) {
     if (!term) return;
-
-    // Get the current font
-    const PangoFontDescription *current = vte_terminal_get_font(VTE_TERMINAL(term));
-
-    // Copy it so we can modify it
-    PangoFontDescription *fd = pango_font_description_copy(current);
-    pango_font_description_set_size(fd, font_size * PANGO_SCALE);  // size is in Pango units
-    vte_terminal_set_font(VTE_TERMINAL(term), fd);
-    pango_font_description_free(fd);
 
     long cell_w = vte_terminal_get_char_width(term);
     long cell_h = vte_terminal_get_char_height(term);
