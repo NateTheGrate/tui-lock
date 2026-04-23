@@ -1,6 +1,8 @@
 # tui-lock
  
 A [gtklock](https://github.com/jovanlanik/gtklock) module that replaces the default lock screen with a TUI-style terminal interface rendered via VTE.
+
+![screenshot](lockscreen.png)
  
 ## Features
  
