@@ -27,7 +27,7 @@ static gint font_size = 12;   // points
 static char *font_family = "Monospace";
 static gint border_x = 320;   // pixels
 static gint border_y = 180;   // pixels
-static gint border_style = 0; // 0 = single line, 1 = double line, 2 = curved single line
+static gint border_style = MIN_BORDER_STYLE; // 1 = single line, 2 = double line, 3 = curved single line
 
 GOptionEntry module_entries[] = {
     { "debug", 0, 0, G_OPTION_ARG_NONE, &debug_mode, NULL, NULL },
@@ -51,10 +51,19 @@ static void write_line_to_log(const char *string) {
 
 void on_activation(struct GtkLock *lock, int id) {
     write_line_to_log("Module loaded successfully");
+    
+    if(border_style > MAX_BORDER_STYLE)
+    {
+      border_style = MAX_BORDER_STYLE;
+    }
+    else if(border_style < MIN_BORDER_STYLE)
+    {
+      border_style = MIN_BORDER_STYLE;
+    }
 }
 
 static void on_resize(GtkWidget *widget, GdkRectangle *alloc, gpointer data) {
-    draw_prompt(term, pw_len, border_x, border_y);
+    draw_prompt(term, pw_len, border_x, border_y, border_style);
 }
 
 static GtkWidget *input_field = NULL;
@@ -65,7 +74,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (pw_len > 0) {
             pw_len--;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len, border_x, border_y);
+            draw_prompt(term, pw_len, border_x, border_y, border_style);
         }
     } else if (key == GDK_KEY_Return) {
         write_line_to_log("Enter pressed: gtklock should handle password now");
@@ -75,7 +84,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (ch && g_unichar_isprint(ch) && pw_len < (int)(sizeof(password) - 1)) {
             password[pw_len++] = (char)ch;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len, border_x, border_y);
+            draw_prompt(term, pw_len, border_x, border_y, border_style);
         }
     }
     
@@ -196,7 +205,7 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
       set_vte_font_family(term, fallback_font_family);
     }
     
-    draw_prompt(term, pw_len, border_x, border_y);
+    draw_prompt(term, pw_len, border_x, border_y, border_style);
 
     write_line_to_log("primarty VTE with prompt added to lock screen");
   } else {

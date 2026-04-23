@@ -9,6 +9,8 @@ typedef struct {
     const char *lj, *rj;
 } BoxChars;
 
+#define MIN_BORDER_STYLE 1
+#define MAX_BORDER_STYLE 3
 static const BoxChars SINGLE = { "┌", "┐", "└", "┘", "─", "│", "├", "┤" };
 static const BoxChars DOUBLE = { "╔", "╗", "╚", "╝", "═", "║", "╠", "╣" };
 static const BoxChars ROUND  = { "╭", "╮", "╰", "╯", "─", "│", "├", "┤" };
@@ -20,8 +22,21 @@ static const char* color_login = COLOR_LOGIN_TEXT;
 static const char* color_username = COLOR_PROMPT_TEXT;
 static const char* color_password = COLOR_PROMPT_TEXT;
 
-static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int target_px_h) {
+static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int target_px_h, int border_style) {
     if (!term) return;
+    
+    switch (border_style)
+    {
+      case 0:
+        box = &SINGLE;
+        break;
+      case 2:
+        box = &DOUBLE;
+        break;
+      case 3:
+        box = &ROUND;
+        break;
+    }
 
     long cell_w = vte_terminal_get_char_width(term);
     long cell_h = vte_terminal_get_char_height(term);
