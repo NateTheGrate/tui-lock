@@ -1,3 +1,5 @@
+#pragma once
+
 #include <gtk/gtk.h>
 #include <vte/vte.h>
 
@@ -17,12 +19,7 @@ static const BoxChars ROUND  = { "╭", "╮", "╰", "╯", "─", "│", "├"
 
 static const BoxChars *box = &SINGLE;
 
-static const char* color_border = COLOR_BORDER;
-static const char* color_login = COLOR_LOGIN_TEXT;
-static const char* color_username = COLOR_PROMPT_TEXT;
-static const char* color_password = COLOR_PROMPT_TEXT;
-
-static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int target_px_h, int border_style) {
+static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int target_px_h, int border_style, ColorTheme* theme) {
     if (!term) return;
     
     switch (border_style)
@@ -73,10 +70,11 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int targ
     // Clear screen, hide cursor
     off += snprintf(buf + off, sizeof(buf) - off,
                     "\033[2J\033[3J\033[?25l");
-
+    
+    char *ansi_color_str = ansi_str(&(theme->border));
     // --- Top border ---
     off += snprintf(buf + off, sizeof(buf) - off,
-                    "\033[%d;%dH%s%s", box_y, box_x, color_border, box->tl);
+                    "\033[%d;%dH%s%s", box_y, box_x, ansi_color_str, box->tl);
     for (int i = 0; i < box_w - 2; i++)
         off += snprintf(buf + off, sizeof(buf) - off, "%s", box->h);
     off += snprintf(buf + off, sizeof(buf) - off, "%s", box->tr);
@@ -97,12 +95,14 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int targ
         off += snprintf(buf + off, sizeof(buf) - off, "%s", box->h);
     off += snprintf(buf + off, sizeof(buf) - off, "%s", box->br);
 
+    free(ansi_color_str);
+    ansi_color_str = ansi_str(&(theme->login));
     // --- Title centered on top border ---
     const char *title = " Login ";
     int title_len = strlen(title);
     int title_x = box_x + (box_w - title_len) / 2;
     off += snprintf(buf + off, sizeof(buf) - off,
-                    "\033[%d;%dH%s%s", box_y, title_x, color_login, title);
+                    "\033[%d;%dH%s%s", box_y, title_x, ansi_color_str, title);
 
     // The content block spans 5 rows: user, blank, separator, blank, password
     int content_h = 5;
@@ -111,15 +111,19 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int targ
     int sep_row = content_start + 2;
     int prompt_row = content_start + 4;
 
+    free(ansi_color_str);
+    ansi_color_str = ansi_str(&(theme->prompt));
     // --- Username (static, not editable) ---
     int label_x  = box_x + 2;
     off += snprintf(buf + off, sizeof(buf) - off,
                     "\033[%d;%dH%sUser:     \033[0m%s",
-                    user_row, label_x, color_username, username);
+                    user_row, label_x, ansi_color_str, username);
 
+    free(ansi_color_str);
+    ansi_color_str = ansi_str(&(theme->border));
     // --- Separator line inside the box ---
     off += snprintf(buf + off, sizeof(buf) - off,
-                   "\033[%d;%dH%s", sep_row, box_x, color_border);
+                   "\033[%d;%dH%s", sep_row, box_x, ansi_color_str);
     // Left junction
     off += snprintf(buf + off, sizeof(buf) - off, "%s", box->lj);
     for (int i = 0; i < box_w - 2; i++)
@@ -127,10 +131,12 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int targ
     // Right junction
     off += snprintf(buf + off, sizeof(buf) - off, "%s", box->rj);
 
+    free(ansi_color_str);
+    ansi_color_str = ansi_str(&(theme->prompt));
     // --- Password label + asterisks ---
     off += snprintf(buf + off, sizeof(buf) - off,
                     "\033[%d;%dH%sPassword: \033[0m",
-                    prompt_row, label_x, color_password);
+                    prompt_row, label_x, ansi_color_str);
     for (int i = 0; i < pw_len; i++)
         off += snprintf(buf + off, sizeof(buf) - off, "*");
 

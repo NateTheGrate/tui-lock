@@ -20,14 +20,21 @@ static char password[256] = {0};
 static int pw_len = 0;
 static const char *log_file = "/tmp/tui-lock.log";
 static const char *fallback_font_family = "Monospace";
-
+static ColorTheme theme = { 0 };
+//
 // config variable defaults
 static gboolean debug_mode = FALSE;
 static gint font_size = 12;   // points
 static char *font_family = "Monospace";
 static gint border_x = 320;   // pixels
 static gint border_y = 180;   // pixels
-static gint border_style = MIN_BORDER_STYLE; // 1 = single line, 2 = double line, 3 = curved single line
+static gint border_style = MIN_BORDER_STYLE; // 1 = single line, 2 = double line, 3 = curved single line 
+// default theme is terminal green
+static char *border_color_hex = "#33FF00";
+static char *bg_color_hex = "#000000";
+static char *fg_color_hex = "#FFFFFF";
+static char *login_text_color_hex = "#FFFFFF";
+static char *prompt_text_color_hex = "#33FF00";
 
 GOptionEntry module_entries[] = {
     { "debug", 0, 0, G_OPTION_ARG_NONE, &debug_mode, NULL, NULL },
@@ -36,6 +43,11 @@ GOptionEntry module_entries[] = {
     { "border-x", 0, 0, G_OPTION_ARG_INT, &border_x, NULL, NULL },
     { "border-y", 0, 0, G_OPTION_ARG_INT, &border_y, NULL, NULL },
     { "border-style", 0, 0, G_OPTION_ARG_INT, &border_style, NULL, NULL },
+    { "border-color", 0, 0, G_OPTION_ARG_STRING, &border_color_hex, NULL, NULL },
+    { "bg-color", 0, 0, G_OPTION_ARG_STRING, &bg_color_hex, NULL, NULL },
+    { "fg-color", 0, 0, G_OPTION_ARG_STRING, &fg_color_hex, NULL, NULL },
+    { "login-color", 0, 0, G_OPTION_ARG_STRING, &login_text_color_hex, NULL, NULL },
+    { "prompt-color", 0, 0, G_OPTION_ARG_STRING, &prompt_text_color_hex, NULL, NULL },
     { NULL },
 };
 
@@ -60,10 +72,16 @@ void on_activation(struct GtkLock *lock, int id) {
     {
       border_style = MIN_BORDER_STYLE;
     }
+
+    theme = (ColorTheme){ hex_to_rgba(bg_color_hex),
+                          hex_to_rgba(fg_color_hex),
+                          hex_to_rgba(border_color_hex),
+                          hex_to_rgba(login_text_color_hex),
+                          hex_to_rgba(prompt_text_color_hex) };
 }
 
 static void on_resize(GtkWidget *widget, GdkRectangle *alloc, gpointer data) {
-    draw_prompt(term, pw_len, border_x, border_y, border_style);
+    draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
 }
 
 static GtkWidget *input_field = NULL;
@@ -74,7 +92,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (pw_len > 0) {
             pw_len--;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len, border_x, border_y, border_style);
+            draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
         }
     } else if (key == GDK_KEY_Return) {
         write_line_to_log("Enter pressed: gtklock should handle password now");
@@ -84,7 +102,7 @@ static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer dat
         if (ch && g_unichar_isprint(ch) && pw_len < (int)(sizeof(password) - 1)) {
             password[pw_len++] = (char)ch;
             password[pw_len] = '\0';
-            draw_prompt(term, pw_len, border_x, border_y, border_style);
+            draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
         }
     }
     
@@ -171,9 +189,6 @@ static gboolean set_vte_font_family( VteTerminal *term, const char *font_str) {
 
 static gboolean term_created = FALSE;
 void on_window_create(struct GtkLock *lock, struct Window *win) {
-  GdkRGBA color_bg = COLOR_BG;  
-  GdkRGBA color_fg = COLOR_FG;  
-
   if(!term_created) {
     term_created = TRUE;
     input_field = win->input_field; 
@@ -184,8 +199,8 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
     {
       write_line_to_log("Failed to create primary VTE");
     }
-    vte_terminal_set_color_background(term, &color_bg);
-    vte_terminal_set_color_foreground(term, &color_fg);
+    vte_terminal_set_color_background(term, &(theme.bg));
+    vte_terminal_set_color_foreground(term, &(theme.fg));
 
     g_signal_connect(terminal, "key-press-event", G_CALLBACK(on_key_press), NULL);
     g_signal_connect(terminal, "map", G_CALLBACK(on_map), NULL);
@@ -205,7 +220,7 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
       set_vte_font_family(term, fallback_font_family);
     }
     
-    draw_prompt(term, pw_len, border_x, border_y, border_style);
+    draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
 
     write_line_to_log("primarty VTE with prompt added to lock screen");
   } else {
@@ -216,7 +231,8 @@ void on_window_create(struct GtkLock *lock, struct Window *win) {
     {
       write_line_to_log("Failed to create secondary VTE");
     }
-    vte_terminal_set_color_background(blank_term, &color_bg);
+    vte_terminal_set_color_background(blank_term, &(theme.bg));
+    vte_terminal_set_color_foreground(blank_term, &(theme.fg));
     vte_terminal_feed(blank_term, "\033[?25l", -1); // hide cursor
 
     gtk_widget_set_can_focus(blank, FALSE);

@@ -1,16 +1,49 @@
+#pragma once
+
+#include <stdlib.h>
+#include <string.h>
 #include <gtk/gtk.h>
 
-//// classic terminal theme 
-//#define COLOR_BG { 0.0, 0.0, 0.0, 1.0 }         // #000000
-//#define COLOR_FG { 1.0, 1.0, 1.0, 1.0 }         // #FFFFFF
-//// ANSI 24-bit color escape sequences
-//#define COLOR_BORDER "\033[38;2;51;255;0m"      // #33ff00
-//#define COLOR_LOGIN_TEXT "\033[1;37m"           // #FFFFFF
-//#define COLOR_PROMPT_TEXT "\033[38;2;51;255;0m" // #33ff00
+struct _ColorTheme 
+{
+  GdkRGBA bg;
+  GdkRGBA fg;
+  GdkRGBA border;
+  GdkRGBA login;
+  GdkRGBA prompt;
+} typedef ColorTheme;
 
-// gruvbox theme 
-#define COLOR_BG { 0.157, 0.157, 0.157, 1.0 };     // #282828
-#define COLOR_FG { 0.922, 0.859, 0.698, 1.0 };     // #ebdbb2
-#define COLOR_BORDER "\033[38;2;235;219;178m";     // #ebdbb2
-#define COLOR_LOGIN_TEXT "\033[38;2;142;192;124m"; // #8ec07c
-#define COLOR_PROMPT_TEXT "\033[38;2;184;187;38m"; // #b8bb26
+// must free output string
+static char *ansi_str(GdkRGBA* color)
+{
+  if(!color) return NULL;
+
+  int r = color->red * 255;
+  int g = color->green * 255;
+  int b = color->blue * 255;
+
+  char *buffer = malloc(25);
+  sprintf(buffer, "\033[38;2;%d;%d;%dm", r, g, b);
+  return buffer;
+}
+
+// input in format of #XXXXXX
+static GdkRGBA hex_to_rgba(const char *hex_color) {
+  if(strlen(hex_color) != 7) {
+    GdkRGBA empty = { 0.0, 0.0, 0.0, 0.0 };
+    return empty;
+  }
+
+  char pairs[3][3] = {
+      {hex_color[1], hex_color[2], '\0'}, // red hex digits
+      {hex_color[3], hex_color[4], '\0'}, // green
+      {hex_color[5], hex_color[6], '\0'}, // blue
+  };
+
+  int r = (int)strtol(pairs[0], NULL, 16);
+  int g = (int)strtol(pairs[1], NULL, 16);
+  int b = (int)strtol(pairs[2], NULL, 16);
+  
+  GdkRGBA result = { (gdouble)r/255, (gdouble)g/255, (gdouble)b/255, (gdouble)1.0 };
+  return result;
+}
