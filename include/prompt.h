@@ -95,6 +95,19 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int targ
         off += snprintf(buf + off, sizeof(buf) - off, "%s", box->h);
     off += snprintf(buf + off, sizeof(buf) - off, "%s", box->br);
 
+    // --- Logout/Shutdown/Reboot commands --- 
+    int cmd_row = rows;
+    int cmd_col = cols / 2;
+    const char *cmd_str = "Logout <F1> Shutdown <F2> Reboot <F3>";
+    int center_char = strlen(cmd_str) / 2 + 1;
+    int cmd_x_start = cmd_col - center_char;
+
+    free(ansi_color_str);
+    ansi_color_str = ansi_str(&(theme->fg));
+    off += snprintf(buf + off, sizeof(buf) - off,
+                    "\033[%d;%dH%s%s\033[0m",
+                    cmd_row, cmd_x_start, ansi_color_str, cmd_str);
+
     free(ansi_color_str);
     ansi_color_str = ansi_str(&(theme->login));
     // --- Title centered on top border ---
@@ -144,4 +157,5 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w, int targ
     off += snprintf(buf + off, sizeof(buf) - off, "\033[?25h\033[0m");
 
     vte_terminal_feed(term, buf, off);
+    free(ansi_color_str);
 }

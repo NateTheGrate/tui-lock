@@ -21,7 +21,7 @@ static int pw_len = 0;
 static const char *log_file = "/tmp/tui-lock.log";
 static const char *fallback_font_family = "Monospace";
 static ColorTheme theme = { 0 };
-//
+
 // config variable defaults
 static gboolean debug_mode = FALSE;
 static gint font_size = 12;   // points
@@ -35,6 +35,9 @@ static char *bg_color_hex = "#000000";
 static char *fg_color_hex = "#FFFFFF";
 static char *login_text_color_hex = "#FFFFFF";
 static char *prompt_text_color_hex = "#33FF00";
+static gchar *logout_cmd = NULL;
+static gchar *shutdown_cmd = NULL;
+static gchar *reboot_cmd = NULL;
 
 GOptionEntry module_entries[] = {
     { "debug", 0, 0, G_OPTION_ARG_NONE, &debug_mode, NULL, NULL },
@@ -48,6 +51,9 @@ GOptionEntry module_entries[] = {
     { "fg-color", 0, 0, G_OPTION_ARG_STRING, &fg_color_hex, NULL, NULL },
     { "login-color", 0, 0, G_OPTION_ARG_STRING, &login_text_color_hex, NULL, NULL },
     { "prompt-color", 0, 0, G_OPTION_ARG_STRING, &prompt_text_color_hex, NULL, NULL },
+    { "logout-cmd", 0, 0, G_OPTION_ARG_STRING, &logout_cmd, NULL, NULL },
+    { "shutdown-cmd", 0, 0, G_OPTION_ARG_STRING, &shutdown_cmd, NULL, NULL },
+    { "reboot-cmd", 0, 0, G_OPTION_ARG_STRING, &reboot_cmd, NULL, NULL },
     { NULL },
 };
 
@@ -59,6 +65,17 @@ static void write_line_to_log(const char *string) {
     fprintf(f, "%s%s\n", prefix, string);
     fclose(f);
   }
+}
+
+// find and replace $USER with actual user name
+// otherwise return original string
+// WARNING memory created on heap, needs g_free at some point
+gchar *resolve_command(const gchar *cmd) {
+    const gchar *username = g_get_user_name();
+    gchar **parts = g_strsplit(cmd, "$USER", -1);
+    gchar *resolved = g_strjoinv(username, parts);
+    g_strfreev(parts);
+    return resolved;
 }
 
 void on_activation(struct GtkLock *lock, int id) {
@@ -78,6 +95,33 @@ void on_activation(struct GtkLock *lock, int id) {
                           hex_to_rgba(border_color_hex),
                           hex_to_rgba(login_text_color_hex),
                           hex_to_rgba(prompt_text_color_hex) };
+
+    if(logout_cmd == NULL)
+    {
+      logout_cmd = resolve_command("loginctl terminate-user $USER");
+    }
+    else
+    {
+      logout_cmd = resolve_command(logout_cmd);
+    }
+
+    if(shutdown_cmd == NULL)
+    {
+      shutdown_cmd = resolve_command("systemctl -i poweroff");
+    }
+    else 
+    {
+      shutdown_cmd = resolve_command(shutdown_cmd);
+    }
+
+    if(reboot_cmd == NULL)
+    {
+      reboot_cmd = resolve_command("systemctl reboot");
+    }
+    else 
+    {
+      reboot_cmd = resolve_command(shutdown_cmd);
+    }
 }
 
 static void on_resize(GtkWidget *widget, GdkRectangle *alloc, gpointer data) {
@@ -88,22 +132,36 @@ static GtkWidget *input_field = NULL;
 static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer data) {
     guint key = event->keyval;
 
-    if (key == GDK_KEY_BackSpace) {
+    switch (key)
+    {
+      case GDK_KEY_F1:
+        g_spawn_command_line_async(logout_cmd, NULL);
+        return TRUE;
+      case GDK_KEY_F2:
+        g_spawn_command_line_async(shutdown_cmd, NULL);
+        return TRUE;
+      case GDK_KEY_F3:
+        g_spawn_command_line_async(reboot_cmd, NULL);
+        return TRUE;
+      case GDK_KEY_BackSpace:
         if (pw_len > 0) {
             pw_len--;
             password[pw_len] = '\0';
             draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
         }
-    } else if (key == GDK_KEY_Return) {
+        break;
+      case GDK_KEY_Return:
         write_line_to_log("Enter pressed: gtklock should handle password now");
+        break;
 
-    } else {
+      default:
         guint32 ch = gdk_keyval_to_unicode(key);
         if (ch && g_unichar_isprint(ch) && pw_len < (int)(sizeof(password) - 1)) {
             password[pw_len++] = (char)ch;
             password[pw_len] = '\0';
             draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
         }
+        break;
     }
     
     // forward all keystrokes to input_field
