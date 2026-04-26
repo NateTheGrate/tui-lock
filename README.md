@@ -63,3 +63,10 @@ Or add it to your gtklock config (`~/.config/gtklock/config.ini`):
 [main]
 modules=/path/to/build/tui-lock.so
 ```
+
+### Config
+
+Look at `_example_config.ini` for all the settings and their default values. 
+Then `_example_config_2.ini` for more inspiration (gruvbox theme + hyprshutdown logout command)
+
+Config belongs in gtklock config.ini (mine is in ~/.config/gtklock/config.ini)
