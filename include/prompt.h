@@ -20,7 +20,8 @@ static const BoxChars ROUND = {"╭", "╮", "╰", "╯", "─", "│", "├", 
 static const BoxChars* box = &SINGLE;
 
 static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w,
-                        int target_px_h, int border_style, ColorTheme* theme) {
+                        int target_px_h, int border_style, ColorTheme* theme,
+                        gchar* login_text) {
   if (!term) return;
 
   switch (border_style) {
@@ -105,15 +106,15 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w,
   off += snprintf(buf + off, sizeof(buf) - off, "\033[%d;%dH%s%s\033[0m",
                   cmd_row, cmd_x_start, ansi_color_str, cmd_str);
 
-  free(ansi_color_str);
-  ansi_color_str = ansi_str(&(theme->login));
-  // --- Title centered on top border ---
-  const char* title = " Login ";
-  int title_len = strlen(title);
-  int title_x = box_x + (box_w - title_len) / 2;
-  off += snprintf(buf + off, sizeof(buf) - off, "\033[%d;%dH%s%s", box_y,
-                  title_x, ansi_color_str, title);
-
+  if (login_text && strlen(login_text) > 0) {
+    free(ansi_color_str);
+    ansi_color_str = ansi_str(&(theme->login));
+    // --- Title centered on top border ---
+    int title_len = strlen(login_text) + 2;  // include spaces for padding
+    int title_x = box_x + (box_w - title_len) / 2;
+    off += snprintf(buf + off, sizeof(buf) - off, "\033[%d;%dH%s %s ", box_y,
+                    title_x, ansi_color_str, login_text);
+  }
   // The content block spans 5 rows: user, blank, separator, blank, password
   int content_h = 5;
   int content_start = box_y + (box_h - content_h) / 2;

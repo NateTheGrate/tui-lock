@@ -31,6 +31,7 @@ static gint border_x = 320;                   // pixels
 static gint border_y = 180;                   // pixels
 static gint border_style = MIN_BORDER_STYLE;  // 1 = single line, 2 = double
                                               // line, 3 = curved single line
+static gchar* login_text = "Login";
 // default theme is terminal green
 static char* border_color_hex = "#33FF00";
 static char* bg_color_hex = "#000000";
@@ -53,6 +54,7 @@ GOptionEntry module_entries[] = {
     {"fg-color", 0, 0, G_OPTION_ARG_STRING, &fg_color_hex, NULL, NULL},
     {"login-color", 0, 0, G_OPTION_ARG_STRING, &login_text_color_hex, NULL,
      NULL},
+    {"login-text", 0, 0, G_OPTION_ARG_STRING, &login_text, NULL, NULL},
     {"prompt-color", 0, 0, G_OPTION_ARG_STRING, &prompt_text_color_hex, NULL,
      NULL},
     {"logout-cmd", 0, 0, G_OPTION_ARG_STRING, &logout_cmd, NULL, NULL},
@@ -82,9 +84,10 @@ void setup_logging() {
 // find and replace $USER with actual user name
 // otherwise return original string
 // WARNING memory created on heap, needs g_free at some point
-gchar* resolve_command(const gchar* cmd) {
+gchar* resolve_user_text(const gchar* str) {
+  if(!str) return NULL;
   const gchar* username = g_get_user_name();
-  gchar** parts = g_strsplit(cmd, "$USER", -1);
+  gchar** parts = g_strsplit(str, "$USER", -1);
   gchar* resolved = g_strjoinv(username, parts);
   g_strfreev(parts);
   return resolved;
@@ -105,27 +108,29 @@ void on_activation(struct GtkLock* lock, int id) {
                        hex_to_rgba(login_text_color_hex),
                        hex_to_rgba(prompt_text_color_hex)};
 
+  login_text = resolve_user_text(login_text); 
   if (logout_cmd == NULL) {
-    logout_cmd = resolve_command("loginctl terminate-user $USER");
+    logout_cmd = resolve_user_text("loginctl terminate-user $USER");
   } else {
-    logout_cmd = resolve_command(logout_cmd);
+    logout_cmd = resolve_user_text(logout_cmd);
   }
 
   if (shutdown_cmd == NULL) {
-    shutdown_cmd = resolve_command("systemctl -i poweroff");
+    shutdown_cmd = resolve_user_text("systemctl -i poweroff");
   } else {
-    shutdown_cmd = resolve_command(shutdown_cmd);
+    shutdown_cmd = resolve_user_text(shutdown_cmd);
   }
 
   if (reboot_cmd == NULL) {
-    reboot_cmd = resolve_command("systemctl reboot");
+    reboot_cmd = resolve_user_text("systemctl reboot");
   } else {
-    reboot_cmd = resolve_command(shutdown_cmd);
+    reboot_cmd = resolve_user_text(shutdown_cmd);
   }
 }
 
 static void on_resize(GtkWidget* widget, GdkRectangle* alloc, gpointer data) {
-  draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
+  draw_prompt(term, pw_len, border_x, border_y, border_style, &theme,
+              login_text);
 }
 
 static GtkWidget* input_field = NULL;
@@ -147,7 +152,8 @@ static gboolean on_key_press(GtkWidget* widget, GdkEventKey* event,
       if (pw_len > 0) {
         pw_len--;
         password[pw_len] = '\0';
-        draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
+        draw_prompt(term, pw_len, border_x, border_y, border_style, &theme,
+                    login_text);
       }
       break;
     case GDK_KEY_Return:
@@ -159,7 +165,8 @@ static gboolean on_key_press(GtkWidget* widget, GdkEventKey* event,
       if (ch && g_unichar_isprint(ch) && pw_len < (int)(sizeof(password) - 1)) {
         password[pw_len++] = (char)ch;
         password[pw_len] = '\0';
-        draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
+        draw_prompt(term, pw_len, border_x, border_y, border_style, &theme,
+                    login_text);
       }
       break;
   }
@@ -278,7 +285,8 @@ void on_window_create(struct GtkLock* lock, struct Window* win) {
       set_vte_font_family(term, fallback_font_family);
     }
 
-    draw_prompt(term, pw_len, border_x, border_y, border_style, &theme);
+    draw_prompt(term, pw_len, border_x, border_y, border_style, &theme,
+                login_text);
 
     write_line_to_log("primarty VTE with prompt added to lock screen");
   } else {
