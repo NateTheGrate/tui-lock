@@ -27,10 +27,15 @@ static ColorTheme theme = {0};
 static gboolean debug_mode = FALSE;
 static gint font_size = 12;  // points
 static char* font_family = "Monospace";
-static gint border_x = 320;                   // pixels
-static gint border_y = 180;                   // pixels
-static gint border_style = MIN_BORDER_STYLE;  // 1 = single line, 2 = double
-                                              // line, 3 = curved single line
+static gint border_x = 320;  // in pixels
+static gint border_y = 180;  // in pixels
+
+static gint border_style = MIN_BORDER_STYLE;  // 1 = single
+                                              // 2 = double
+                                              // 3 = single curved
+
+static gint prompt_style = MIN_PROMPT_STYLE;  // 1 = User and Password boxes
+                                              // 2 = Just Password box
 static gchar* login_text = "Login";
 // default theme is terminal green
 static char* border_color_hex = "#33FF00";
@@ -55,6 +60,7 @@ GOptionEntry module_entries[] = {
     {"login-color", 0, 0, G_OPTION_ARG_STRING, &login_text_color_hex, NULL,
      NULL},
     {"login-text", 0, 0, G_OPTION_ARG_STRING, &login_text, NULL, NULL},
+    {"prompt-style", 0, 0, G_OPTION_ARG_INT, &prompt_style, NULL, NULL},
     {"prompt-color", 0, 0, G_OPTION_ARG_STRING, &prompt_text_color_hex, NULL,
      NULL},
     {"logout-cmd", 0, 0, G_OPTION_ARG_STRING, &logout_cmd, NULL, NULL},
@@ -85,7 +91,7 @@ void setup_logging() {
 // otherwise return original string
 // WARNING memory created on heap, needs g_free at some point
 gchar* resolve_user_text(const gchar* str) {
-  if(!str) return NULL;
+  if (!str) return NULL;
   const gchar* username = g_get_user_name();
   gchar** parts = g_strsplit(str, "$USER", -1);
   gchar* resolved = g_strjoinv(username, parts);
@@ -103,12 +109,18 @@ void on_activation(struct GtkLock* lock, int id) {
     border_style = MIN_BORDER_STYLE;
   }
 
+  if (prompt_style > MAX_PROMPT_STYLE) {
+    prompt_style = MAX_PROMPT_STYLE;
+  } else if (prompt_style < MIN_PROMPT_STYLE) {
+    prompt_style = MIN_PROMPT_STYLE;
+  }
+
   theme = (ColorTheme){hex_to_rgba(bg_color_hex), hex_to_rgba(fg_color_hex),
                        hex_to_rgba(border_color_hex),
                        hex_to_rgba(login_text_color_hex),
                        hex_to_rgba(prompt_text_color_hex)};
 
-  login_text = resolve_user_text(login_text); 
+  login_text = resolve_user_text(login_text);
   if (logout_cmd == NULL) {
     logout_cmd = resolve_user_text("loginctl terminate-user $USER");
   } else {
@@ -130,7 +142,7 @@ void on_activation(struct GtkLock* lock, int id) {
 
 static void on_resize(GtkWidget* widget, GdkRectangle* alloc, gpointer data) {
   draw_prompt(term, pw_len, border_x, border_y, border_style, &theme,
-              login_text);
+              login_text, prompt_style);
 }
 
 static GtkWidget* input_field = NULL;
@@ -153,7 +165,7 @@ static gboolean on_key_press(GtkWidget* widget, GdkEventKey* event,
         pw_len--;
         password[pw_len] = '\0';
         draw_prompt(term, pw_len, border_x, border_y, border_style, &theme,
-                    login_text);
+                    login_text, prompt_style);
       }
       break;
     case GDK_KEY_Return:
@@ -166,7 +178,7 @@ static gboolean on_key_press(GtkWidget* widget, GdkEventKey* event,
         password[pw_len++] = (char)ch;
         password[pw_len] = '\0';
         draw_prompt(term, pw_len, border_x, border_y, border_style, &theme,
-                    login_text);
+                    login_text, prompt_style);
       }
       break;
   }
@@ -286,7 +298,7 @@ void on_window_create(struct GtkLock* lock, struct Window* win) {
     }
 
     draw_prompt(term, pw_len, border_x, border_y, border_style, &theme,
-                login_text);
+                login_text, prompt_style);
 
     write_line_to_log("primarty VTE with prompt added to lock screen");
   } else {

@@ -13,6 +13,8 @@ typedef struct {
 
 #define MIN_BORDER_STYLE 1
 #define MAX_BORDER_STYLE 3
+#define MIN_PROMPT_STYLE 1
+#define MAX_PROMPT_STYLE 2
 static const BoxChars SINGLE = {"┌", "┐", "└", "┘", "─", "│", "├", "┤"};
 static const BoxChars DOUBLE = {"╔", "╗", "╚", "╝", "═", "║", "╠", "╣"};
 static const BoxChars ROUND = {"╭", "╮", "╰", "╯", "─", "│", "├", "┤"};
@@ -21,7 +23,7 @@ static const BoxChars* box = &SINGLE;
 
 static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w,
                         int target_px_h, int border_style, ColorTheme* theme,
-                        gchar* login_text) {
+                        gchar* login_text, int prompt_style) {
   if (!term) return;
 
   switch (border_style) {
@@ -46,12 +48,17 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w,
 
   // target dimensions in pixels
   if (target_px_w <= 0 || target_px_h <= 0) {
-    target_px_w = 320;
-    target_px_h = 180;
+    if (prompt_style == MIN_PROMPT_STYLE) {
+      target_px_w = 320;
+      target_px_h = 180;
+    } else if (prompt_style == 2) {
+      target_px_w = 250;
+      target_px_h = 100;
+    }
   }
   // calculate dimensions in cells (normalized for font size)
-  int box_w = MAX(40, (int)(target_px_w / cell_w));
-  int box_h = MAX(9, (int)(target_px_h / cell_h));
+  int box_w = MAX(30, (int)(target_px_w / cell_w));
+  int box_h = MAX(3, (int)(target_px_h / cell_h));
 
   const char* username = g_get_user_name();
 
@@ -122,32 +129,47 @@ static void draw_prompt(VteTerminal* term, int pw_len, int target_px_w,
   int sep_row = content_start + 2;
   int prompt_row = content_start + 4;
 
+  // prompt style 2 is just the password field alone
+  if (prompt_style == 2) {
+    content_h = 3;
+    content_start = box_y + (box_h - content_h) / 2 + 1;
+    prompt_row = content_start;
+  }
+
   free(ansi_color_str);
   ansi_color_str = ansi_str(&(theme->prompt));
   // --- Username (static, not editable) ---
   int label_x = box_x + 2;
-  off +=
-      snprintf(buf + off, sizeof(buf) - off, "\033[%d;%dH%sUser:     \033[0m%s",
-               user_row, label_x, ansi_color_str, username);
 
-  free(ansi_color_str);
-  ansi_color_str = ansi_str(&(theme->border));
-  // --- Separator line inside the box ---
-  off += snprintf(buf + off, sizeof(buf) - off, "\033[%d;%dH%s", sep_row, box_x,
-                  ansi_color_str);
-  // Left junction
-  off += snprintf(buf + off, sizeof(buf) - off, "%s", box->lj);
-  for (int i = 0; i < box_w - 2; i++)
-    off += snprintf(buf + off, sizeof(buf) - off, "%s", box->h);
-  // Right junction
-  off += snprintf(buf + off, sizeof(buf) - off, "%s", box->rj);
+  if (prompt_style == MIN_PROMPT_STYLE) {
+    off += snprintf(buf + off, sizeof(buf) - off,
+                    "\033[%d;%dH%sUser:     \033[0m%s", user_row, label_x,
+                    ansi_color_str, username);
 
+    free(ansi_color_str);
+    ansi_color_str = ansi_str(&(theme->border));
+    // --- Separator line inside the box ---
+    off += snprintf(buf + off, sizeof(buf) - off, "\033[%d;%dH%s", sep_row,
+                    box_x, ansi_color_str);
+    // Left junction
+    off += snprintf(buf + off, sizeof(buf) - off, "%s", box->lj);
+    for (int i = 0; i < box_w - 2; i++)
+      off += snprintf(buf + off, sizeof(buf) - off, "%s", box->h);
+    // Right junction
+    off += snprintf(buf + off, sizeof(buf) - off, "%s", box->rj);
+  }
+
+  const char* pw_prompt = "Password: ";
+  int pw_prompt_len = (int)strlen(pw_prompt) + 3; // + 3 for x-padding
+  if (pw_len + pw_prompt_len > box_w) {
+    pw_len = box_w - pw_prompt_len;
+  }
   free(ansi_color_str);
   ansi_color_str = ansi_str(&(theme->prompt));
   // --- Password label + asterisks ---
   off +=
-      snprintf(buf + off, sizeof(buf) - off, "\033[%d;%dH%sPassword: \033[0m",
-               prompt_row, label_x, ansi_color_str);
+      snprintf(buf + off, sizeof(buf) - off, "\033[%d;%dH%s%s\033[0m",
+               prompt_row, label_x, ansi_color_str, pw_prompt);
   for (int i = 0; i < pw_len; i++)
     off += snprintf(buf + off, sizeof(buf) - off, "*");
 
