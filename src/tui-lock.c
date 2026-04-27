@@ -18,7 +18,7 @@ const guint module_minor_version = 0;
 static VteTerminal *term = NULL;
 static char password[256] = {0};
 static int pw_len = 0;
-static const char *log_file = "/tmp/tui-lock.log";
+static char *log_path = "/tmp/tui-lock.log";
 static const char *fallback_font_family = "Monospace";
 static ColorTheme theme = { 0 };
 
@@ -61,10 +61,20 @@ static void write_line_to_log(const char *string) {
   if(debug_mode)
   {
     const char *prefix = "TUI-Module: ";
-    FILE *f = fopen(log_file, "a");
+    FILE *f = fopen(log_path, "a");
     fprintf(f, "%s%s\n", prefix, string);
     fclose(f);
   }
+}
+
+void setup_logging()
+{
+  const char *cache_dir = g_get_user_cache_dir();
+  char *log_dir = g_build_filename(cache_dir, "tui-lock", NULL);
+  g_mkdir_with_parents(log_dir, 0755);
+  log_path = g_build_filename(log_dir, "tui-lock.log", NULL);
+
+  g_free(log_dir);
 }
 
 // find and replace $USER with actual user name
@@ -79,49 +89,50 @@ gchar *resolve_command(const gchar *cmd) {
 }
 
 void on_activation(struct GtkLock *lock, int id) {
-    write_line_to_log("Module loaded successfully");
-    
-    if(border_style > MAX_BORDER_STYLE)
-    {
-      border_style = MAX_BORDER_STYLE;
-    }
-    else if(border_style < MIN_BORDER_STYLE)
-    {
-      border_style = MIN_BORDER_STYLE;
-    }
+  setup_logging();
+  write_line_to_log("Module loaded successfully");
+  
+  if(border_style > MAX_BORDER_STYLE)
+  {
+    border_style = MAX_BORDER_STYLE;
+  }
+  else if(border_style < MIN_BORDER_STYLE)
+  {
+    border_style = MIN_BORDER_STYLE;
+  }
 
-    theme = (ColorTheme){ hex_to_rgba(bg_color_hex),
-                          hex_to_rgba(fg_color_hex),
-                          hex_to_rgba(border_color_hex),
-                          hex_to_rgba(login_text_color_hex),
-                          hex_to_rgba(prompt_text_color_hex) };
+  theme = (ColorTheme){ hex_to_rgba(bg_color_hex),
+                        hex_to_rgba(fg_color_hex),
+                        hex_to_rgba(border_color_hex),
+                        hex_to_rgba(login_text_color_hex),
+                        hex_to_rgba(prompt_text_color_hex) };
 
-    if(logout_cmd == NULL)
-    {
-      logout_cmd = resolve_command("loginctl terminate-user $USER");
-    }
-    else
-    {
-      logout_cmd = resolve_command(logout_cmd);
-    }
+  if(logout_cmd == NULL)
+  {
+    logout_cmd = resolve_command("loginctl terminate-user $USER");
+  }
+  else
+  {
+    logout_cmd = resolve_command(logout_cmd);
+  }
 
-    if(shutdown_cmd == NULL)
-    {
-      shutdown_cmd = resolve_command("systemctl -i poweroff");
-    }
-    else 
-    {
-      shutdown_cmd = resolve_command(shutdown_cmd);
-    }
+  if(shutdown_cmd == NULL)
+  {
+    shutdown_cmd = resolve_command("systemctl -i poweroff");
+  }
+  else 
+  {
+    shutdown_cmd = resolve_command(shutdown_cmd);
+  }
 
-    if(reboot_cmd == NULL)
-    {
-      reboot_cmd = resolve_command("systemctl reboot");
-    }
-    else 
-    {
-      reboot_cmd = resolve_command(shutdown_cmd);
-    }
+  if(reboot_cmd == NULL)
+  {
+    reboot_cmd = resolve_command("systemctl reboot");
+  }
+  else 
+  {
+    reboot_cmd = resolve_command(shutdown_cmd);
+  }
 }
 
 static void on_resize(GtkWidget *widget, GdkRectangle *alloc, gpointer data) {

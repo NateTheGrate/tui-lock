@@ -1,7 +1,7 @@
 #!/bin/bash
 
-rm /tmp/tui-lock.log
+rm ~/.cache/tui-lock/tui-lock.log
 make clean 
 make
 gtklock -m ./build/tui-lock.so 
-cat /tmp/tui-lock.log
+cat ~/.cache/tui-lock/tui-lock.log
